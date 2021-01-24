@@ -11,7 +11,6 @@ class Commander:
         self.events = {"on_error": None}
         self.auto_node = auto_node
 
-
         self.tree.create_node(self.caller, self.caller)
 
     def run(self, cmd:str):
