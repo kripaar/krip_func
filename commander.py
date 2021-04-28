@@ -2,14 +2,23 @@ from .imported.treelib import Tree
 from .imported.treelib.exceptions import NodeIDAbsentError
 from typing import Optional
 import shlex
+import asyncio
+import inspect
 
 
 class Commander:
-    def __init__(self, caller="", auto_node:bool=False):
+    def __init__(self, caller="", auto_node:bool=False, use_asyncio=False, loop=None):
         self.caller = caller
         self.tree = Tree()
         self.events = {"on_error": None}
         self.auto_node = auto_node
+        self.use_asyncio = use_asyncio
+
+        if use_asyncio:
+            try:
+                self.loop = loop or asyncio.get_running_loop()
+            except RuntimeError:
+                self.loop = asyncio.get_event_loop()
 
         self.tree.create_node(self.caller, self.caller)
 
@@ -21,6 +30,9 @@ class Commander:
             p, a = self._split(phrases)
             return self._run(p, *a)
         return None
+
+    async def async_run(self, cmd:str):
+        return self.run(cmd)
 
     # Decorator to add commands
     def __call__(self, name="", parent=""):
@@ -63,6 +75,14 @@ class Commander:
             if func is None:
                 self._raise(FunctionNotFound(f"Function ({node.identifier}) not found, and error handler not registered"))
             else:
+                params = list(inspect.signature(func).parameters.values())
+                args = list(args)
+                for i, a in enumerate(args):
+                    if not isinstance(a, params[i].annotation) and params[i].annotation is not inspect.Signature.empty:
+                        args[i] = (params[i].annotation)(a)
+
+                if self.use_asyncio:
+                    return self.loop.create_task(func(*args))
                 return func(*args)
 
     def _add_func(self, func, name="", parent=""):
@@ -87,10 +107,5 @@ class Commander:
 
 
 class FunctionNotFound(Exception):
-    def __init__(self, msg):
-        self.msg = msg
-
-
-class DatabaseNotFound(Exception):
     def __init__(self, msg):
         self.msg = msg
