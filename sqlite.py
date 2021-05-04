@@ -48,7 +48,7 @@ class database(object):
         :param values: values you want to add. values should be given in ascending order. NO NEED for putting the values into a list / tuple first
         :return: None
         """
-        self.do(f"INSERT INTO {table} VALUES {values}")
+        self.do(f"INSERT INTO {table} VALUES ({', '.join(['?' for _ in range(len(values))])})", values)
 
     @_save
     def append_data_ifDNE(self, table:str, *values):
@@ -60,7 +60,7 @@ class database(object):
         """
         col = self.get_table_columns(table)
         filters = " AND ".join([f"{c}={v}" for c in col for v in values])
-        self.do(f"INSERT INTO {table} VALUES {values} WHERE NOT EXISTS (SELECT * FROM {table} WHERE {filters})")
+        self.do(f"INSERT INTO {table} VALUES ({', '.join(['?' for _ in range(len(values))])}) WHERE NOT EXISTS (SELECT * FROM {table} WHERE {filters})")
 
     @_save
     def append_many_data(self, table:str, *values:list):
